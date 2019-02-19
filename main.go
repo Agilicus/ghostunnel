@@ -217,8 +217,11 @@ func serverValidateFlags() error {
 		len(*serverAllowedIPs) > 0 ||
 		len(*serverAllowedURIs) > 0
 
-	if *keystorePath == "" && !hasKeychainIdentity() {
-		return errors.New("at least one of --keystore or --keychain-identity (if supported) flags is required")
+	if (*key != "" && *cert == "") || (*key == "" && *cert != "") {
+		return errors.New("both key and cert are required")
+	}
+	if (*key == "" && *cert == "" && *keystorePath == "") && !hasKeychainIdentity() {
+		return errors.New("at least one of --keystore/cert/key or --keychain-identity (if supported) flags is required")
 	}
 	if *keystorePath != "" && hasKeychainIdentity() {
 		return errors.New("--keystore and --keychain-identity flags are mutually exclusive")
