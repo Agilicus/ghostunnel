@@ -46,11 +46,11 @@ instance. Metrics can be fed into Graphite (or other systems) to see number of
 open connections, rate of new connections, connection lifetimes, timeouts, and
 other info.
 
-**Emphasis on security**: We have put some thought into making ghostunnel
+**[Emphasis on security](BUG-BOUNTY.md)**: We have put some thought into making ghostunnel
 secure by default and prevent accidental misconfiguration. For example,  we
 always negotiate TLS v1.2 and only use safe cipher suites. Ghostunnel also
 supports PKCS#11 which makes it possible to use Hardware Security Modules
-(HSMs) to protect private keys, and we have a [BUG-BOUNTY](BUG-BOUNTY.md) that
+(HSMs) to protect private keys, and we have a bug bounty that
 pays rewards for security findings. 
 
 Getting Started
@@ -76,7 +76,7 @@ Binaries can be built from source as follows (cross-compile requires Docker and 
     # Cross-compile release binaries
     make -f Makefile.dist dist
 
-Note that ghostunnel requires Go 1.11 or later to build, and CGO is required for
+Note that ghostunnel requires Go 1.12 or later to build, and CGO is required for
 PKCS#11 support.  See also [CROSS-COMPILE](docs/CROSS-COMPILE.md) for
 instructions on how to cross-compile a custom build with CGO enabled.
 
@@ -96,7 +96,7 @@ To run tests:
     make test
 
     # Option 2: run unit & integration tests in a Docker container
-    GO_VERSION=1.11 make docker-test
+    GO_VERSION=1.12 make docker-test
 
     # Open coverage information in browser
     go tool cover -html coverage-merged.out
@@ -121,18 +121,16 @@ in the background, we recommend using a service manager such as [systemd][system
 
 ### Certificates
 
-Ghostunnel accepts two formats of keystores, either a PKCS#12 keystore or a
-combined PEM file that contains both the certificate chain and private key.
-Both formats can be used with the `--keystore` flag, ghostunnel will
-automatically detect the file format and handle it appropriately. If you are
-using a PKCS#12 keystore protected by a password, you will also need to pass
-the `--storepass` flag. If you want to use ghostunnel with a PKCS#11 module,
-see the section on PKCS#11 below.
+Ghostunnel accepts certificates in multiple different file formats.
 
-In the event your certificate and key are not bundled together (for example
-created by cert-manager in Kubernetes), you can use `--cert <cert>`
-and `--key <key-file>`.
+The `--keystore` flag can take a PKCS#12 keystore or a combined PEM file with the
+certificate chain and private key as input (format is auto-detected). The `--cert` /
+`--key` flags can be used to load a certificate chain and key from separate PEM files
+(instead of a combined one).
 
+Ghostunnel also supports loading identities from the macOS keychain and having
+private keys backed by PKCS#11 modules, see the "Advanced Features" section below
+for more information.
 
 ### Server mode 
 
@@ -250,6 +248,23 @@ See [ACCESS-FLAGS](docs/ACCESS-FLAGS.md) for details.
 [spiffe]: https://spiffe.io/
 [svid]: https://github.com/spiffe/spiffe/blob/master/standards/X509-SVID.md
 
+### Logging Options
+
+You can silence specific types of log messages using the `--quiet=...` flag,
+such as `--quiet=conns` or `--quiet=handshake-errs`. You can pass this flag
+repeatedly if you want to silence multiple different kinds of log messages.
+
+Supported values are:
+* `all`: silences **all** log messages
+* `conns`: silences log messages about new and closed connections. 
+* `conn-errs`: silences log messages about connection errors encountered (post handshake). 
+* `handshake-errs`: silences log messages about failed handshakes. 
+
+In particular we recommend setting `--quiet=handshake-errs` if you are
+running TCP health checks in Kubernetes on the listening port, and you
+want to avoid seeing error messages from aborted connections on each health
+check.
+
 ### Certificate Hotswapping
 
 To trigger a reload, simply send `SIGUSR1` to the process or set a time-based
@@ -285,6 +300,14 @@ Ghostunnel has support for loading private keys from PKCS#11 modules, which
 should work with any hardware security module that exposes a PKCS#11 interface.
 
 See [HSM-PKCS11](docs/HSM-PKCS11.md) for details.
+
+### PROXY protocol (experimental)
+
+Ghostunnel in server mode supports signalling of transport connection information
+to the backend using the [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)
+(v2), just pass the `--proxy-protocol` flag on startup. Note that the backend must
+also support the PROXY protocol and must be configured to use it when setting
+this option.
 
 ### macOS keychain support (experimental)
 
