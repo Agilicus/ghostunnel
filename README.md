@@ -1,3 +1,5 @@
+#### This fork has been abandoned as the features it provides are now in upstream square/ghostunnel
+
 Ghostunnel
 ==========
 
